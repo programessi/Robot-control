@@ -4,14 +4,16 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 import matplotlib.pyplot as plt
-
+from matplotlib import rcParams
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../')
 from matplotlib import rcParams
 from IK.ik_solver import InverseKinematicsSolver
 
 # 中文字体设置
-rcParams['font.sans-serif'] = ['SimHei']
+# rcParams['font.sans-serif'] = ['WenQuanYi Zen Hei']
+
+
 rcParams['axes.unicode_minus'] = False
 
 # 仿真参数配置
@@ -84,45 +86,88 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         
         step += 1
 
-# 结果可视化
+# Result Visualization
 plt.figure(figsize=(14, 10))
 
-# 三维轨迹跟踪结果
+# 三维轨迹跟踪结果 3D trajectory tracking results
 ax1 = plt.subplot(2, 2, 1, projection='3d')
 ax1.plot(target_positions[:,0], target_positions[:,1], target_positions[:,2], 
-        label='目标轨迹', linestyle='--')
+        label='Target Trajectory', linestyle='--')  # 目标轨迹
 ax1.plot(actual_positions[:,0], actual_positions[:,1], actual_positions[:,2], 
-        label='实际轨迹', alpha=0.7)
-ax1.set_xlabel('X (m)')
-ax1.set_ylabel('Y (m)')
-ax1.set_zlabel('Z (m)')
-ax1.set_title('末端执行器轨迹跟踪')
+        label='Actual Trajectory', alpha=0.7)  # 实际轨迹
+ax1.set_xlabel('X (m)')  # X (米)
+ax1.set_ylabel('Y (m)')  # Y (米)
+ax1.set_zlabel('Z (m)')  # Z (米)
+ax1.set_title('End-effector Trajectory Tracking')  # 末端执行器轨迹跟踪
 ax1.legend()
 
-# 关节角度变化
+# 关节角度变化 Joint angle variations
 ax2 = plt.subplot(2, 2, 2)
 for j in range(7):
     ax2.plot(time_axis, np.degrees(joint_angles[:,j]), 
-            label=f'关节 {j+1}')
-ax2.set_xlabel('时间 (s)')
-ax2.set_ylabel('关节角度 (°)')
-ax2.set_title('关节运动状态')
+            label=f'Joint {j+1}')  # 关节 {j+1}
+ax2.set_xlabel('Time (s)')  # 时间 (秒)
+ax2.set_ylabel('Joint Angle (°)')  # 关节角度 (度)
+ax2.set_title('Joint Motion State')  # 关节运动状态
 ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
-# 控制信号
+# 控制信号 Control signals
 ax3 = plt.subplot(2, 2, 3)
 for j in range(7):
-    ax3.plot(time_axis, control_signals[:,j], label=f'关节 {j+1}')
-ax3.set_xlabel('时间 (s)')
-ax3.set_ylabel('控制力矩 (N·m)')
-ax3.set_title('控制信号输出')
+    ax3.plot(time_axis, control_signals[:,j], label=f'Joint {j+1}')  # 关节 {j+1}
+ax3.set_xlabel('Time (s)')  # 时间 (秒)
+ax3.set_ylabel('Control Torque (N·m)')  # 控制力矩 (牛·米)
+ax3.set_title('Control Signal Output')  # 控制信号输出
 
-# 跟踪误差分析
+# 跟踪误差分析 Tracking error analysis
 ax4 = plt.subplot(2, 2, 4)
 position_error = np.linalg.norm(actual_positions - target_positions, axis=1)
 ax4.plot(time_axis, position_error*1000, color='r')
-ax4.set_xlabel('时间 (s)')
-ax4.set_ylabel('跟踪误差 (mm)')
+ax4.set_xlabel('Time (s)')  # 时间 (秒)
+ax4.set_ylabel('Tracking Error (mm)')  # 跟踪误差 (毫米)
+ax4.set_title('Position Tracking Error')  # 位置跟踪误差
 
 plt.tight_layout()
 plt.show()
+# # 结果可视化
+# plt.figure(figsize=(14, 10))
+
+# # 三维轨迹跟踪结果
+# ax1 = plt.subplot(2, 2, 1, projection='3d')
+# ax1.plot(target_positions[:,0], target_positions[:,1], target_positions[:,2], 
+#         label='目标轨迹', linestyle='--')
+# ax1.plot(actual_positions[:,0], actual_positions[:,1], actual_positions[:,2], 
+#         label='实际轨迹', alpha=0.7)
+# ax1.set_xlabel('X (m)')
+# ax1.set_ylabel('Y (m)')
+# ax1.set_zlabel('Z (m)')
+# ax1.set_title('末端执行器轨迹跟踪')
+# ax1.legend()
+
+# # 关节角度变化
+# ax2 = plt.subplot(2, 2, 2)
+# for j in range(7):
+#     ax2.plot(time_axis, np.degrees(joint_angles[:,j]), 
+#             label=f'关节 {j+1}')
+# ax2.set_xlabel('时间 (s)')
+# ax2.set_ylabel('关节角度 (°)')
+# ax2.set_title('关节运动状态')
+# ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# # 控制信号
+# ax3 = plt.subplot(2, 2, 3)
+# for j in range(7):
+#     ax3.plot(time_axis, control_signals[:,j], label=f'关节 {j+1}')
+# ax3.set_xlabel('时间 (s)')
+# ax3.set_ylabel('控制力矩 (N·m)')
+# ax3.set_title('控制信号输出')
+
+# # 跟踪误差分析
+# ax4 = plt.subplot(2, 2, 4)
+# position_error = np.linalg.norm(actual_positions - target_positions, axis=1)
+# ax4.plot(time_axis, position_error*1000, color='r')
+# ax4.set_xlabel('时间 (s)')
+# ax4.set_ylabel('跟踪误差 (mm)')
+
+# plt.tight_layout()
+# plt.show()
