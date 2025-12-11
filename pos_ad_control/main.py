@@ -7,9 +7,14 @@ import numpy as np
 import select
 import termios
 import tty
+import matplotlib.pyplot as plt
 
+# 仿真参数配置
+SIM_DURATION = 10.0      # 总仿真时间（秒）
+CTRL_FREQ = 500         # 控制频率（Hz）
+TIMESTEP = 0.002        # 物理仿真步长
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../')
-from ik_solver_2 import InverseKinematicsSolver
+from pos_ad_control.ik_solver import InverseKinematicsSolver
 
 # ---------- 工具函数 ----------
 def circular_trajectory_local(t, radius=0.20, freq=0.5,
@@ -178,6 +183,16 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         viewer.sync()
 
 # ---------- 阶段2：开始画圆轨迹（每步使用完整姿态 IK） ----------
+# 数据记录配置
+num_steps = int(SIM_DURATION / TIMESTEP)
+time_axis = np.arange(0, SIM_DURATION, TIMESTEP)[:num_steps]
+
+# 预分配存储空间
+target_positions = np.zeros((num_steps, 3))
+actual_positions = np.zeros((num_steps, 3))
+joint_angles = np.zeros((num_steps, 7))
+control_signals = np.zeros((num_steps, 7))
+
 t = 0.0
 num_steps = int(TOTAL_TIME / SIM_DT)
 step = 0
@@ -191,7 +206,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
 
         target_local = circular_trajectory_local(t)
         target_world = base_pos + base_rot @ target_local
-
+        target_positions[step]= target_world
         primary = base_rot @ np.array([1.0, 0.0, 0.0])
         secondary_hint = base_rot @ np.array([0.0, 0.0, 1.0])
         R_primary_first = rotation_matrix_from_two_axes(primary, secondary_hint)
@@ -201,12 +216,56 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         tau = Kp * (q_target - data.qpos[:7]) - Kd * data.qvel[:7]
         tau = np.clip(tau, -tau_limit, tau_limit)
         data.ctrl[:7] = tau
-
+        actual_positions[step] = data.site("link_tcp").xpos
+        joint_angles[step] = data.qpos[:7]
+        control_signals[step] = tau
         mujoco.mj_step(model, data)
         viewer.sync()
 
         t += SIM_DT
         step += 1
+# Result Visualization
+plt.figure(figsize=(14, 10))
 
+# 三维轨迹跟踪结果 3D trajectory tracking results
+ax1 = plt.subplot(2, 2, 1, projection='3d')
+ax1.plot(target_positions[:,0], target_positions[:,1], target_positions[:,2], 
+        label='Target Trajectory', linestyle='--')  # 目标轨迹
+ax1.plot(actual_positions[:,0], actual_positions[:,1], actual_positions[:,2], 
+        label='Actual Trajectory', alpha=0.7)  # 实际轨迹
+ax1.set_xlabel('X (m)')  # X (米)
+ax1.set_ylabel('Y (m)')  # Y (米)
+ax1.set_zlabel('Z (m)')  # Z (米)
+ax1.set_title('End-effector Trajectory Tracking')  # 末端执行器轨迹跟踪
+ax1.legend()
+
+# 关节角度变化 Joint angle variations
+ax2 = plt.subplot(2, 2, 2)
+for j in range(7):
+    ax2.plot(time_axis, np.degrees(joint_angles[:,j]), 
+            label=f'Joint {j+1}')  # 关节 {j+1}
+ax2.set_xlabel('Time (s)')  # 时间 (秒)
+ax2.set_ylabel('Joint Angle (°)')  # 关节角度 (度)
+ax2.set_title('Joint Motion State')  # 关节运动状态
+ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# 控制信号 Control signals
+ax3 = plt.subplot(2, 2, 3)
+for j in range(7):
+    ax3.plot(time_axis, control_signals[:,j], label=f'Joint {j+1}')  # 关节 {j+1}
+ax3.set_xlabel('Time (s)')  # 时间 (秒)
+ax3.set_ylabel('Control Torque (N·m)')  # 控制力矩 (牛·米)
+ax3.set_title('Control Signal Output')  # 控制信号输出
+
+# 跟踪误差分析 Tracking error analysis
+ax4 = plt.subplot(2, 2, 4)
+position_error = np.linalg.norm(actual_positions - target_positions, axis=1)
+ax4.plot(time_axis, position_error*1000, color='r')
+ax4.set_xlabel('Time (s)')  # 时间 (秒)
+ax4.set_ylabel('Tracking Error (mm)')  # 跟踪误差 (毫米)
+ax4.set_title('Position Tracking Error')  # 位置跟踪误差
+
+plt.tight_layout()
+plt.show()
 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attr)
 print("运行结束。")
